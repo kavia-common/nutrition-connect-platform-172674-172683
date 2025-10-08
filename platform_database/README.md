@@ -15,18 +15,25 @@ Key defaults:
    ./startup.sh
 
 The script will:
-- Ensure PostgreSQL is running on port 5001
+- Ensure PostgreSQL is running and bound to 0.0.0.0 on port 5001
+- Initialize PGDATA if needed and repair stale postmaster.pid
+- Configure listen_addresses='*' and port=5001
+- Update pg_hba.conf to allow local and remote md5 connections
 - Create user nc_app and database nutrition_connect if they do not exist
 - Grant appropriate privileges
+- Wait for readiness using pg_isready with retries/backoff
 - Write a connection helper to db_connection.txt
 - Update db_visualizer/postgres.env with connection details
 
-2) Connect with psql:
+2) Verify readiness explicitly:
+   pg_isready -h 127.0.0.1 -p 5001 -U nc_app
+
+3) Connect with psql:
    psql -h localhost -U nc_app -d nutrition_connect -p 5001
 or
    $(cat db_connection.txt)
 
-3) Reference Schema and Seed
+4) Reference Schema and Seed
 - schema.sql contains a comprehensive reference schema aligned with planned Django models.
 - seed.sql contains minimal sample data for smoke testing.
 
