@@ -38,31 +38,54 @@ pg_ready() {
   fi
 }
 
+DATA_DIR="/var/lib/postgresql/data"
+
 # Initialize data dir if necessary (typical Debian/Ubuntu layout)
-if [ -n "${PG_BIN}" ] && [ ! -f "/var/lib/postgresql/data/PG_VERSION" ] && sudo -u postgres true 2>/dev/null; then
+if [ -n "${PG_BIN}" ] && [ ! -f "${DATA_DIR}/PG_VERSION" ] && sudo -u postgres true 2>/dev/null; then
   echo "Initializing PostgreSQL data directory (if required)..."
-  sudo -u postgres ${PG_BIN}/initdb -D /var/lib/postgresql/data >/dev/null 2>&1 || true
+  sudo -u postgres ${PG_BIN}/initdb -D "${DATA_DIR}" >/dev/null 2>&1 || true
+fi
+
+# Ensure postgresql.conf overrides port and listen_addresses for 0.0.0.0
+if [ -n "${PG_BIN}" ] && sudo -u postgres true 2>/dev/null; then
+  CONF_FILE="${DATA_DIR}/postgresql.conf"
+  if [ -f "${CONF_FILE}" ]; then
+    # Ensure port line exists and matches desired port
+    if ! sudo -u postgres grep -qE "^port[[:space:]]*=[[:space:]]*${POSTGRES_PORT}" "${CONF_FILE}"; then
+      echo "Configuring port ${POSTGRES_PORT} in postgresql.conf ..."
+      # Remove existing port lines and append ours
+      sudo -u postgres sed -i "/^#*port[[:space:]]*=/d" "${CONF_FILE}"
+      echo "port = ${POSTGRES_PORT}" | sudo -u postgres tee -a "${CONF_FILE}" >/dev/null
+    fi
+    # Ensure listen_addresses is wildcard so container binds externally
+    if ! sudo -u postgres grep -qE "^listen_addresses[[:space:]]*=" "${CONF_FILE}"; then
+      echo "listen_addresses = '*'" | sudo -u postgres tee -a "${CONF_FILE}" >/dev/null
+    else
+      sudo -u postgres sed -i "s/^#*listen_addresses.*/listen_addresses = '*'/" "${CONF_FILE}"
+    fi
+  fi
 fi
 
 # Start server if not ready (best-effort; in CI it may already be running)
 if ! pg_ready >/dev/null 2>&1; then
   if [ -n "${PG_BIN}" ] && sudo -u postgres true 2>/dev/null; then
     echo "Starting PostgreSQL server on port ${POSTGRES_PORT} ..."
-    sudo -u postgres ${PG_BIN}/postgres -D /var/lib/postgresql/data -p ${POSTGRES_PORT} >/dev/null 2>&1 &
-    # Wait for readiness
-    for i in {1..20}; do
-      if pg_ready >/dev/null 2>&1; then
-        break
-      fi
-      sleep 1
-    done
+    sudo -u postgres ${PG_BIN}/postgres -D "${DATA_DIR}" -p ${POSTGRES_PORT} -h 0.0.0.0 >/dev/null 2>&1 &
   fi
 fi
+
+# Wait for readiness with retries up to ~40s
+for i in {1..40}; do
+  if pg_ready >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
 
 if pg_ready >/dev/null 2>&1; then
   echo "✓ PostgreSQL is ready on ${POSTGRES_HOST}:${POSTGRES_PORT}"
 else
-  echo "⚠ Warning: Could not verify PostgreSQL readiness. Continuing with configuration attempts."
+  echo "⚠ Warning: Could not verify PostgreSQL readiness after retries. Proceeding to attempt configuration."
 fi
 
 # Create role and database if missing, idempotently
@@ -77,17 +100,17 @@ BEGIN
 END
 \$\$;
 
--- Create database if not exists
+-- Create database if not exists, owned by app user
 DO \$\$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_database WHERE datname = '${POSTGRES_DB}') THEN
-    PERFORM dblink_exec('dbname=' || current_database(), 'CREATE DATABASE ${POSTGRES_DB}');
+    PERFORM dblink_exec('dbname=' || current_database(), 'CREATE DATABASE ${POSTGRES_DB} OWNER ${POSTGRES_USER}');
   END IF;
 EXCEPTION
   WHEN undefined_function THEN
     -- dblink not available; fallback
     IF NOT EXISTS (SELECT FROM pg_database WHERE datname = '${POSTGRES_DB}') THEN
-      EXECUTE 'CREATE DATABASE ${POSTGRES_DB}';
+      EXECUTE 'CREATE DATABASE ${POSTGRES_DB} OWNER ${POSTGRES_USER}';
     END IF;
 END
 \$\$;

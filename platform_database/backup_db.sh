@@ -3,10 +3,10 @@
 # Universal Database Backup Script
 # Automatically detects and backs up the running database
 
-DB_NAME="myapp"
-DB_USER="appuser"
-DB_PASSWORD="dbuser123"
-DB_PORT="5000"
+DB_NAME="nutrition_connect"
+DB_USER="nc_app"
+DB_PASSWORD="change_me_dev"
+DB_PORT="5001"
 
 # SQLite check and backup
 if [ -f "${DB_NAME}" ]; then
