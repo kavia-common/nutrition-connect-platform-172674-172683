@@ -170,6 +170,13 @@ CREATE SCHEMA IF NOT EXISTS public;
 GRANT USAGE ON SCHEMA public TO public;
 EOSQL
 
+# Ensure common extensions exist (used by reference schema)
+run_psql -h 127.0.0.1 -p "${POSTGRES_PORT}" -d "${POSTGRES_DB}" -v ON_ERROR_STOP=1 <<'EOSQL' || true
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "citext";
+EOSQL
+
 # Apply user-specific grants
 run_psql -h 127.0.0.1 -p "${POSTGRES_PORT}" -d "${POSTGRES_DB}" -v ON_ERROR_STOP=1 <<EOSQL || true
 GRANT ALL ON SCHEMA public TO ${POSTGRES_USER};
@@ -179,6 +186,13 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${POSTGRES_U
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO ${POSTGRES_USER};
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TYPES TO ${POSTGRES_USER};
 EOSQL
+
+# Optionally seed structure on first-time creation if there are no user tables
+if run_psql -h 127.0.0.1 -p "${POSTGRES_PORT}" -d "${POSTGRES_DB}" -tAc "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public'" | grep -q '^0$'; then
+  echo "Seeding reference schema for visibility in viewer ..."
+  run_psql -h 127.0.0.1 -p "${POSTGRES_PORT}" -d "${POSTGRES_DB}" -v ON_ERROR_STOP=1 -f schema.sql || true
+  run_psql -h 127.0.0.1 -p "${POSTGRES_PORT}" -d "${POSTGRES_DB}" -v ON_ERROR_STOP=1 -f seed.sql || true
+fi
 
 # Final readiness check for external bind (0.0.0.0) via localhost resolution
 if pg_ready 127.0.0.1 "${POSTGRES_PORT}" "${POSTGRES_USER}" >/dev/null 2>&1; then

@@ -1,0 +1,18 @@
+# Core
+Django==4.2.15
+djangorestframework==3.14.0
+django-cors-headers==4.4.0
+
+# ASGI / channels (optional, compatible set)
+channels==4.1.0
+daphne==4.1.2
+
+# Postgres driver - use binary wheels to avoid system-level build deps
+psycopg2-binary==2.9.9
+
+# Swagger/OpenAPI - choose one; drf-spectacular avoids drf-yasg conflicts
+drf-spectacular==0.27.2
+
+# Utilities
+python-dotenv==1.0.1
+pytz==2024.1

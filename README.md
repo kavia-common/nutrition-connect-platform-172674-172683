@@ -8,4 +8,11 @@ This workspace hosts the platform_database container for the Nutrition Connect P
 - Verify readiness:
   pg_isready -h localhost -p 5002
 
+Database viewer quickstart:
+  cd platform_database/db_visualizer
+  source postgres.env
+  npm install
+  npm start
+Then open http://localhost:3000 and you should see PostgreSQL listed. If not, ensure startup.sh has run and postgres.env exists with port 5002.
+
 See platform_database/README.md for detailed instructions.

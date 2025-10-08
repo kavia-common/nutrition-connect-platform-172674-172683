@@ -68,13 +68,36 @@ const env = loadEnvFiles();
 
 // Database configuration builder
 const dbConfigBuilders = {
-  postgres: (env) => env.POSTGRES_URL ? {
-    host: 'localhost',
-    port: env.POSTGRES_PORT || 5432,
-    user: env.POSTGRES_USER || 'postgres',
-    password: env.POSTGRES_PASSWORD || '',
-    database: env.POSTGRES_DB || 'postgres'
-  } : null,
+  postgres: (env) => {
+    if (!env.POSTGRES_URL && !(env.POSTGRES_USER && env.POSTGRES_DB)) return null;
+
+    // Prefer URL if provided; fall back to discrete vars
+    if (env.POSTGRES_URL) {
+      try {
+        const url = new URL(env.POSTGRES_URL);
+        return {
+          host: url.hostname || 'localhost',
+          port: Number(url.port) || Number(env.POSTGRES_PORT) || 5432,
+          user: decodeURIComponent(url.username || env.POSTGRES_USER || 'postgres'),
+          password: decodeURIComponent(url.password || env.POSTGRES_PASSWORD || ''),
+          database: (url.pathname || '/postgres').replace(/^\//, '') || env.POSTGRES_DB || 'postgres',
+          ssl: false
+        };
+      } catch (e) {
+        console.log(`✗ Invalid POSTGRES_URL (${env.POSTGRES_URL}): ${e.message}`);
+      }
+    }
+
+    // Fallback to discrete env vars
+    return {
+      host: 'localhost',
+      port: Number(env.POSTGRES_PORT) || 5432,
+      user: env.POSTGRES_USER || 'postgres',
+      password: env.POSTGRES_PASSWORD || '',
+      database: env.POSTGRES_DB || 'postgres',
+      ssl: false
+    };
+  },
   
   mysql: (env) => env.MYSQL_URL ? {
     host: 'localhost',

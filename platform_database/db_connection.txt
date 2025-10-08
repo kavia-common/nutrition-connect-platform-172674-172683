@@ -1,1 +1,1 @@
-psql postgresql://nc_app:change_me_dev@127.0.0.1:5002/nutrition_connect
+psql postgresql://nc_app:change_me_dev@localhost:5002/nutrition_connect
