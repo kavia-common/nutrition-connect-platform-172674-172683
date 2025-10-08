@@ -4,7 +4,7 @@ set -euo pipefail
 # Idempotent PostgreSQL startup and configuration script
 # Standardized configuration (can be overridden via env if provided by orchestrator)
 POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
-POSTGRES_PORT="${POSTGRES_PORT:-5001}"
+POSTGRES_PORT="${POSTGRES_PORT:-5002}"
 POSTGRES_DB="${POSTGRES_DB:-nutrition_connect}"
 POSTGRES_USER="${POSTGRES_USER:-nc_app}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-change_me_dev}"
@@ -78,7 +78,7 @@ if [ -n "${PG_BIN}" ] && [ ! -f "${DATA_DIR}/PG_VERSION" ] && id postgres >/dev/
   as_pg "${PG_BIN}/initdb" -D "${DATA_DIR}" >/dev/null
 fi
 
-# Ensure configuration for binding on 0.0.0.0 and port 5001
+# Ensure configuration for binding on 0.0.0.0 and port ${POSTGRES_PORT}
 CONF_FILE="${DATA_DIR}/postgresql.conf"
 HBA_FILE="${DATA_DIR}/pg_hba.conf"
 AUTO_CONF="${DATA_DIR}/postgresql.auto.conf"

@@ -6,7 +6,7 @@
 DB_NAME="nutrition_connect"
 DB_USER="nc_app"
 DB_PASSWORD="change_me_dev"
-DB_PORT="5001"
+DB_PORT="5002"
 
 # SQLite restore
 if [ -f "database_backup.db" ]; then
